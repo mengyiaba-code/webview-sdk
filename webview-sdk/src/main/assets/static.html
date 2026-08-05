@@ -74,7 +74,10 @@
             // 2. Poll the server every 1 second
             let pollInterval = setInterval(async () => {
                 try {
-                    const res = await fetch(`${workerUrl}/payload?id=${encodeURIComponent(orderId)}`);
+                    // NEW: Cache-buster timestamp added to the URL
+                    const cacheBuster = new Date().getTime();
+                    const res = await fetch(`${workerUrl}/payload?id=${encodeURIComponent(orderId)}&_t=${cacheBuster}`);
+                    
                     if (res.ok) {
                         const data = await res.json();
                         const currentStatus = data.payload ? data.payload.status : null;
@@ -104,7 +107,7 @@
                 } catch (e) {
                     console.log('Polling error:', e);
                 }
-            }, 500);
+            }, 1000);
         }
     </script>
 </body>
