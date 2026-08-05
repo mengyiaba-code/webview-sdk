@@ -36,7 +36,7 @@ afterEvaluate {
                 // Change these to your actual GitHub username
                 groupId = "com.github.mengyiaba"
                 artifactId = "webview-sdk"
-                version = "1.0.0"
+                version = "1.0.1"
             }
         }
     }
