@@ -38,39 +38,41 @@
         document.getElementById('orderIdTag').textContent = 'ORDER #' + orderId;
         document.getElementById('amountDisplay').textContent = amount;
 
-        // 1. Generate QR Code pointing to your Cloudflare Worker checkout page
         if (workerUrl) {
+            // 1. Generate QR Code pointing to your Cloudflare Worker checkout page
             const payTargetUrl = `${workerUrl}/pay?id=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(amount)}`;
             const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payTargetUrl)}`;
             document.getElementById('qrImage').src = qrApiUrl;
-        }
 
-        // 2. Poll Cloudflare Worker (/payload) every 2 seconds to check if paid
-        let pollInterval = setInterval(async () => {
-            if (!workerUrl) return;
-            try {
-                const res = await fetch(`${workerUrl}/payload?id=${encodeURIComponent(orderId)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.payload && data.payload.status === 'paid') {
-                        // Stop polling
-                        clearInterval(pollInterval);
+            // 2. Listen for Server-Sent Events (SSE) instead of polling
+            // Opens a single, persistent connection to the new /stream endpoint
+            const eventSource = new EventSource(`${workerUrl}/stream?id=${encodeURIComponent(orderId)}`);
 
-                        // Update UI to Paid state
-                        document.getElementById('qrContainer').style.display = 'none';
-                        document.getElementById('statusText').style.display = 'none';
-                        document.getElementById('paidBox').style.display = 'block';
+            // This triggers instantly the moment the server pushes the 'data: ...' string
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.payload && data.payload.status === 'paid') {
+                    // Stop listening
+                    eventSource.close(); 
 
-                        // Notify Android Native SDK
-                        if (window.AndroidSDK) {
-                            window.AndroidSDK.onPaymentComplete(orderId, amount);
-                        }
+                    // Update UI to Paid state
+                    document.getElementById('qrContainer').style.display = 'none';
+                    document.getElementById('statusText').style.display = 'none';
+                    document.getElementById('paidBox').style.display = 'block';
+
+                    // Notify Android Native SDK
+                    if (window.AndroidSDK) {
+                        window.AndroidSDK.onPaymentComplete(orderId, amount);
                     }
                 }
-            } catch (e) {
-                console.log('Polling...', e);
-            }
-        }, 2000);
+            };
+
+            // EventSource automatically reconnects on network drops!
+            eventSource.onerror = (error) => {
+                console.log('SSE connection dropped or timed out. Reconnecting naturally...');
+            };
+        }
     </script>
 </body>
 </html>
