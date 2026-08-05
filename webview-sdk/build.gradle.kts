@@ -1,7 +1,6 @@
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-    id("maven-publish")
+    `maven-publish`
 }
 
 android {
@@ -31,12 +30,13 @@ android {
 afterEvaluate {
     publishing {
         publications {
-            create("release") {
-                from(components["release"])
-                // Change these to your actual GitHub username
+            // You must register it as a MavenPublication
+            register<MavenPublication>("release") {
+                from(components["release"]) 
+                
                 groupId = "com.github.mengyiaba"
                 artifactId = "webview-sdk"
-                version = "1.0.1"
+                version = "1.0.3"
             }
         }
     }
