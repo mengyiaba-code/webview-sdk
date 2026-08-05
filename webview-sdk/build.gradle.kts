@@ -6,8 +6,15 @@ plugins {
 
 android {
     // This acts as your SDK's unique identifier
-    namespace = "com.yourusername.webviewsdk"
+    namespace = "com.mengyiaba.webviewsdk"
     compileSdk = 34
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 
     defaultConfig {
         minSdk = 24
@@ -27,7 +34,7 @@ afterEvaluate {
             create("release") {
                 from(components["release"])
                 // Change these to your actual GitHub username
-                groupId = "com.github.YourUsername"
+                groupId = "com.github.mengyiaba"
                 artifactId = "webview-sdk"
                 version = "1.0.0"
             }
