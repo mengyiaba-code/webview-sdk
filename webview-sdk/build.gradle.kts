@@ -1,42 +1,44 @@
 plugins {
     id("com.android.library")
+    id("org.jetbrains.kotlin.android")
     `maven-publish`
 }
 
 android {
-    // This acts as your SDK's unique identifier
-    namespace = "com.mengyiaba.webviewsdk"
+    namespace = "com.github.mengyiaba.webview" // Replace with your package name
     compileSdk = 34
 
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-            withJavadocJar()
-        }
+    defaultConfig {
+        minSdk = 21
     }
 
-    defaultConfig {
-        minSdk = 24
-    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
+
+    // Configure Kotlin target using tasks instead of kotlinOptions block
+    tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+        }
     }
 }
 
 afterEvaluate {
     publishing {
         publications {
-            // You must register it as a MavenPublication
             register<MavenPublication>("release") {
-                from(components["release"]) 
-                
+                from(components["release"])
                 groupId = "com.github.mengyiaba"
                 artifactId = "webview-sdk"
-                version = "1.0.3"
+                version = "1.0.4"
             }
         }
     }
