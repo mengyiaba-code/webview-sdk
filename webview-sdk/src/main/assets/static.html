@@ -9,49 +9,34 @@
         .card { background: #ffffff; border-radius: 20px; padding: 24px; width: 100%; max-width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); text-align: center; }
         .amount { font-size: 32px; font-weight: 800; color: #1d1b20; margin: 8px 0; }
         .id-tag { background: #e8def8; color: #6750a4; padding: 4px 12px; border-radius: 12px; font-weight: bold; font-size: 12px; font-family: monospace; display: inline-block; margin-bottom: 16px;}
-        
-        /* Pending View Styles */
         .qr-box { margin: 10px 0 20px 0; padding: 12px; background: #fff; border: 1px solid #e0e0e0; border-radius: 16px; display: inline-block; transition: opacity 0.3s; }
         .qr-box img { width: 180px; height: 180px; display: block; }
         .status { font-size: 14px; font-weight: 600; color: #0277bd; margin-top: 10px; }
-        
-        /* Success View Styles */
         .success-view { display: none; padding: 20px 0; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         .success-icon { font-size: 72px; margin-bottom: 12px; line-height: 1; }
         .success-title { font-size: 24px; font-weight: 800; color: #1b5e20; }
         .cashier-note { margin-top: 24px; background: #f1f5f9; color: #475569; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: 600; }
-
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0.8); }
-            100% { opacity: 1; transform: scale(1); }
-        }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body>
     <div class="card">
         <span id="orderIdTag" class="id-tag">ORDER #---</span>
         
-        <!-- View 1: QR Code & Waiting -->
         <div id="pendingView">
             <div style="color:#666; font-size:13px;">Total Due</div>
             <div id="amountDisplay" class="amount">$0.00</div>
-
             <div id="qrContainer" class="qr-box">
                 <img id="qrImage" src="" alt="Loading QR..." />
             </div>
-
             <div id="statusText" class="status">⏳ Waiting for customer to scan...</div>
         </div>
 
-        <!-- View 2: Payment Successful -->
         <div id="successView" class="success-view">
             <div class="success-icon">✅</div>
             <div class="success-title">Payment Successful</div>
             <div id="successAmount" class="amount" style="color: #1b5e20;">$0.00</div>
-            
-            <div class="cashier-note">
-                🧑‍💼 Cashier has been notified and the receipt is printing.
-            </div>
+            <div class="cashier-note">🧑‍💼 Cashier has been notified and the receipt is printing.</div>
         </div>
     </div>
 
@@ -66,48 +51,21 @@
         document.getElementById('successAmount').textContent = amount;
 
         if (workerUrl) {
-            // 1. Generate QR Code
             const payTargetUrl = `${workerUrl}/pay?id=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(amount)}`;
             const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payTargetUrl)}`;
             document.getElementById('qrImage').src = qrApiUrl;
+        }
 
-            // 2. Poll the server every 1 second
-            let pollInterval = setInterval(async () => {
-                try {
-                    // NEW: Cache-buster timestamp added to the URL
-                    const cacheBuster = new Date().getTime();
-                    const res = await fetch(`${workerUrl}/payload?id=${encodeURIComponent(orderId)}&_t=${cacheBuster}`);
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        const currentStatus = data.payload ? data.payload.status : null;
-                        
-                        if (currentStatus === 'scanned') {
-                            // Stage 2: User opened the camera link
-                            document.getElementById('qrContainer').style.opacity = '0.15';
-                            document.getElementById('statusText').textContent = '📱 Phone connected! Waiting for payment...';
-                            document.getElementById('statusText').style.color = '#ef6c00'; // Orange
-                        } 
-                        else if (currentStatus === 'paid') {
-                            // Stage 3: Payment finished
-                            clearInterval(pollInterval); // Stop asking the server
-                            
-                            // Hide the pending UI
-                            document.getElementById('pendingView').style.display = 'none';
-                            
-                            // Show the Success UI
-                            document.getElementById('successView').style.display = 'block';
+        // KOTLIN WILL CALL THESE FUNCTIONS DIRECTLY
+        function showScanned() {
+            document.getElementById('qrContainer').style.opacity = '0.15';
+            document.getElementById('statusText').textContent = '📱 Phone connected! Waiting for payment...';
+            document.getElementById('statusText').style.color = '#ef6c00';
+        }
 
-                            // Notify the native Android app
-                            if (window.AndroidSDK) {
-                                window.AndroidSDK.onPaymentComplete(orderId, amount);
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.log('Polling error:', e);
-                }
-            }, 1000);
+        function showPaid() {
+            document.getElementById('pendingView').style.display = 'none';
+            document.getElementById('successView').style.display = 'block';
         }
     </script>
 </body>
