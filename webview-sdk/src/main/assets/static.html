@@ -61,46 +61,50 @@
         const amount = urlParams.get('amount') || '$0.00';
         const workerUrl = urlParams.get('workerUrl') || '';
 
-        // Set variables in the UI
         document.getElementById('orderIdTag').textContent = 'ORDER #' + orderId;
         document.getElementById('amountDisplay').textContent = amount;
-        document.getElementById('successAmount').textContent = amount; // Sets the amount on the success screen
+        document.getElementById('successAmount').textContent = amount;
 
         if (workerUrl) {
-            // Generate QR Code
+            // 1. Generate QR Code
             const payTargetUrl = `${workerUrl}/pay?id=${encodeURIComponent(orderId)}&amount=${encodeURIComponent(amount)}`;
             const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payTargetUrl)}`;
             document.getElementById('qrImage').src = qrApiUrl;
 
-            // Connect to Cloudflare Worker stream
-            const eventSource = new EventSource(`${workerUrl}/stream?id=${encodeURIComponent(orderId)}`);
+            // 2. Poll the server every 1 second
+            let pollInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${workerUrl}/payload?id=${encodeURIComponent(orderId)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const currentStatus = data.payload ? data.payload.status : null;
+                        
+                        if (currentStatus === 'scanned') {
+                            // Stage 2: User opened the camera link
+                            document.getElementById('qrContainer').style.opacity = '0.15';
+                            document.getElementById('statusText').textContent = '📱 Phone connected! Waiting for payment...';
+                            document.getElementById('statusText').style.color = '#ef6c00'; // Orange
+                        } 
+                        else if (currentStatus === 'paid') {
+                            // Stage 3: Payment finished
+                            clearInterval(pollInterval); // Stop asking the server
+                            
+                            // Hide the pending UI
+                            document.getElementById('pendingView').style.display = 'none';
+                            
+                            // Show the Success UI
+                            document.getElementById('successView').style.display = 'block';
 
-            eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                const currentStatus = data.payload ? data.payload.status : null;
-                
-                if (currentStatus === 'scanned') {
-                    // Stage 2: User opened the camera link
-                    document.getElementById('qrContainer').style.opacity = '0.15';
-                    document.getElementById('statusText').textContent = '📱 Phone connected! Waiting for payment...';
-                    document.getElementById('statusText').style.color = '#ef6c00'; // Orange
-                } 
-                else if (currentStatus === 'paid') {
-                    // Stage 3: Payment finished
-                    eventSource.close(); 
-                    
-                    // Hide the pending UI completely
-                    document.getElementById('pendingView').style.display = 'none';
-                    
-                    // Show the Success UI
-                    document.getElementById('successView').style.display = 'block';
-
-                    // Notify the native Android app
-                    if (window.AndroidSDK) {
-                        window.AndroidSDK.onPaymentComplete(orderId, amount);
+                            // Notify the native Android app
+                            if (window.AndroidSDK) {
+                                window.AndroidSDK.onPaymentComplete(orderId, amount);
+                            }
+                        }
                     }
+                } catch (e) {
+                    console.log('Polling error:', e);
                 }
-            };
+            }, 500);
         }
     </script>
 </body>
